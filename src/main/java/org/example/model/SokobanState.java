@@ -1,6 +1,7 @@
-package org.example;
+package org.example.model;
 
 // SokobanState.java
+
 import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;

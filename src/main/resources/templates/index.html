@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="hu" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Sokoban AI - Heurisztika Tesztelő</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f4f4f9; }
+        .container { display: flex; gap: 20px; }
+        .editor-section, .result-section { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); width: 50%; }
+        textarea { width: 100%; font-family: monospace; font-size: 14px; padding: 10px; box-sizing: border-box; }
+        button { padding: 10px 20px; background-color: #28a745; color: white; border: none; cursor: pointer; font-size: 16px; margin-top: 10px; border-radius: 4px; }
+        button:hover { background-color: #218838; }
+        .success { color: green; font-weight: bold; }
+        .error { color: red; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<h1>Sokoban AI - A* Heurisztika Beküldő</h1>
+
+<div class="container">
+    <div class="editor-section">
+        <form action="/solve" method="post">
+            <h3>1. Pálya állapota (Level Data)</h3>
+            <textarea name="levelData" rows="6" th:text="${level}"></textarea>
+
+            <h3>2. Heurisztika Java kódja (int heur(SokobanState state))</h3>
+            <textarea name="userCode" rows="15" th:text="${code}"></textarea>
+
+            <button type="submit">Kód lefordítása és Futtatás</button>
+        </form>
+    </div>
+
+    <div class="result-section">
+        <h3>Eredmények</h3>
+
+        <div th:if="${error}" class="error">
+            <p th:text="${error}"></p>
+        </div>
+
+        <div th:if="${message}" class="success">
+            <p th:text="${message}"></p>
+            <p>Futási idő: <span th:text="${time}"></span> ms</p>
+            <p>Lépések száma: <span th:text="${steps}"></span></p>
+            <p>Útvonal:</p>
+            <pre th:text="${solution}"></pre>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>
