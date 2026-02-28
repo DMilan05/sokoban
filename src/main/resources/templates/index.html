@@ -12,6 +12,10 @@
         button:hover { background-color: #218838; }
         .success { color: green; font-weight: bold; }
         .error { color: red; font-weight: bold; }
+
+        /* ÚJ: Egy kis stílus a jelmagyarázat doboznak */
+        .legend-box { background-color: #e9ecef; padding: 10px; border-radius: 5px; margin-bottom: 10px; font-size: 13px; color: #333; }
+        .legend-box code { font-weight: bold; color: #d63384; font-size: 14px; }
     </style>
 </head>
 <body>
@@ -26,6 +30,17 @@
             <input type="text" name="username" placeholder="Írd be a neved vagy Neptun kódod..." required th:value="${username}">
 
             <h3>1. Pálya állapota (Level Data)</h3>
+
+            <div class="legend-box">
+                <strong>Jelmagyarázat:</strong><br>
+                <code>#</code> Fal &nbsp;|&nbsp;
+                <code>@</code> Játékos &nbsp;|&nbsp;
+                <code>$</code> Doboz &nbsp;|&nbsp;
+                <code>.</code> Célmező &nbsp;|&nbsp;
+                <code>*</code> Doboz a célon &nbsp;|&nbsp;
+                <code>+</code> Játékos a célon
+            </div>
+
             <textarea name="levelData" rows="6" th:text="${level}"></textarea>
 
             <h3>2. Heurisztika Java kódja (int heur(SokobanState state))</h3>
