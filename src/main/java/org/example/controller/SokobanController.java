@@ -5,6 +5,10 @@ import org.example.model.AStarSearch;
 import org.example.model.Direction;
 import org.example.model.SokobanHeuristic;
 import org.example.model.SokobanState;
+import org.example.model.User;
+import org.example.model.HeuristicSubmission;
+import org.example.repository.HeuristicSubmissionRepository;
+import org.example.repository.UserRepository;
 import org.example.service.DynamicCompilerService;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -18,16 +22,20 @@ import java.util.List;
 public class SokobanController {
 
     private final DynamicCompilerService compilerService;
+    private final UserRepository userRepository;
+    private final HeuristicSubmissionRepository submissionRepository;
 
-    // A Spring automatikusan beinjektálja a szolgáltatásunkat
-    public SokobanController(DynamicCompilerService compilerService) {
+    public SokobanController(DynamicCompilerService compilerService,
+                             UserRepository userRepository,
+                             HeuristicSubmissionRepository submissionRepository) {
         this.compilerService = compilerService;
+        this.userRepository = userRepository;
+        this.submissionRepository = submissionRepository;
     }
 
-    // Ez a metódus jeleníti meg a kezdőlapot (GET kérés)
     @GetMapping("/")
     public String index(Model model) {
-        // Alapértelmezett kód, amit a weblap betöltésekor lát a user
+        // Alapértelmezett kód
         String defaultCode = """
                 public int heur(SokobanState state) {
                     int totalDistance = 0;
@@ -45,6 +53,7 @@ public class SokobanController {
                 }
                 """;
 
+        // Alapértelmezett pálya
         String defaultLevel = """
                 ######
                 #@ $.#
@@ -53,12 +62,15 @@ public class SokobanController {
 
         model.addAttribute("code", defaultCode);
         model.addAttribute("level", defaultLevel);
-        return "index"; // Visszaadja az index.html-t a templates mappából
+
+        // Ranglista betöltése
+        model.addAttribute("leaderboard", submissionRepository.findAllByOrderByStepsToSolveAsc());
+        return "index";
     }
 
-    // Ez a metódus fut le, amikor a user rákattint a "Futtatás" gombra
     @PostMapping("/solve")
     public String solve(
+            @RequestParam("username") String username,
             @RequestParam("userCode") String userCode,
             @RequestParam("levelData") String levelData,
             Model model) {
@@ -66,31 +78,47 @@ public class SokobanController {
         long startTime = System.currentTimeMillis();
 
         try {
-            // 1. Lefordítjuk a user által beküldött Java kódot (Dinamikus injektálás!)
+            // 1. Dinamikus fordítás
             SokobanHeuristic customHeuristic = compilerService.compileAndInstantiate(userCode, "UserHeuristic");
 
-            // 2. Beolvassuk a pályát
+            // 2. Pálya beolvasása
             SokobanState initialState = SokobanApplication.parseLevel(levelData);
 
-            // 3. Lefuttatjuk a keresőt a BEKÜLDÖTT heurisztikával
+            // 3. A* Keresés
             AStarSearch searcher = new AStarSearch();
             List<Direction> solution = searcher.search(initialState, customHeuristic);
 
             long duration = System.currentTimeMillis() - startTime;
 
-            // 4. Eredmények visszaküldése a weblapnak
+            // 4. Eredmények a felületre
             model.addAttribute("solution", solution);
             model.addAttribute("steps", solution != null ? solution.size() : 0);
             model.addAttribute("time", duration);
-            model.addAttribute("message", solution != null ? "Sikeres megoldás!" : "Nincs megoldás a pályára.");
+            model.addAttribute("message", solution != null ? "Sikeres megoldás! Eredmény elmentve." : "Nincs megoldás a pályára.");
+
+            // 5. Adatbázis mentés
+            if (solution != null && username != null && !username.trim().isEmpty()) {
+                String cleanUsername = username.trim();
+
+                User user = userRepository.findByUsername(cleanUsername);
+                if (user == null) {
+                    user = new User(cleanUsername);
+                    userRepository.save(user);
+                }
+
+                HeuristicSubmission submission = new HeuristicSubmission(user, userCode, solution.size(), duration);
+                submissionRepository.save(submission);
+            }
 
         } catch (Exception e) {
             model.addAttribute("error", "Hiba történt a kód fordítása vagy futtatása közben: " + e.getMessage());
         }
 
-        // Visszatöltjük a formba a beküldött adatokat, hogy a user lássa, mit írt
+        // Form visszaállítása és ranglista frissítése
+        model.addAttribute("username", username);
         model.addAttribute("code", userCode);
         model.addAttribute("level", levelData);
+        model.addAttribute("leaderboard", submissionRepository.findAllByOrderByStepsToSolveAsc());
 
         return "index";
     }

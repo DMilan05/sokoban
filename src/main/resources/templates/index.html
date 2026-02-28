@@ -7,7 +7,7 @@
         body { font-family: Arial, sans-serif; margin: 20px; background-color: #f4f4f9; }
         .container { display: flex; gap: 20px; }
         .editor-section, .result-section { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); width: 50%; }
-        textarea { width: 100%; font-family: monospace; font-size: 14px; padding: 10px; box-sizing: border-box; }
+        textarea, input[type="text"] { width: 100%; font-family: monospace; font-size: 14px; padding: 10px; box-sizing: border-box; margin-bottom: 15px;}
         button { padding: 10px 20px; background-color: #28a745; color: white; border: none; cursor: pointer; font-size: 16px; margin-top: 10px; border-radius: 4px; }
         button:hover { background-color: #218838; }
         .success { color: green; font-weight: bold; }
@@ -21,6 +21,10 @@
 <div class="container">
     <div class="editor-section">
         <form action="/solve" method="post">
+
+            <h3>0. Felhasználónév (A ranglistához)</h3>
+            <input type="text" name="username" placeholder="Írd be a neved vagy Neptun kódod..." required th:value="${username}">
+
             <h3>1. Pálya állapota (Level Data)</h3>
             <textarea name="levelData" rows="6" th:text="${level}"></textarea>
 
@@ -47,6 +51,33 @@
         </div>
     </div>
 </div>
+
+<hr style="margin-top: 40px; margin-bottom: 20px;">
+
+<h2>🏆 Élő Ranglista (Top Heurisztikák)</h2>
+<table style="width: 100%; border-collapse: collapse; background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+    <thead>
+    <tr style="background-color: #007bff; color: white; text-align: left;">
+        <th style="padding: 12px; border: 1px solid #ddd;">#</th>
+        <th style="padding: 12px; border: 1px solid #ddd;">Felhasználó</th>
+        <th style="padding: 12px; border: 1px solid #ddd;">Lépésszám (Minél kisebb, annál jobb)</th>
+        <th style="padding: 12px; border: 1px solid #ddd;">Futási idő (ms)</th>
+        <th style="padding: 12px; border: 1px solid #ddd;">Beküldés ideje</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr th:if="${leaderboard == null or leaderboard.isEmpty()}">
+        <td colspan="5" style="padding: 12px; text-align: center; font-style: italic;">Még nincsenek beküldött eredmények. Legyél te az első!</td>
+    </tr>
+    <tr th:each="sub, stat : ${leaderboard}">
+        <td style="padding: 12px; border: 1px solid #ddd; font-weight: bold;" th:text="${stat.count}">1</td>
+        <td style="padding: 12px; border: 1px solid #ddd;" th:text="${sub.user.username}">Név</td>
+        <td style="padding: 12px; border: 1px solid #ddd; font-weight: bold; color: #28a745;" th:text="${sub.stepsToSolve}">10</td>
+        <td style="padding: 12px; border: 1px solid #ddd;" th:text="${sub.executionTimeMs}">15</td>
+        <td style="padding: 12px; border: 1px solid #ddd;" th:text="${#temporals.format(sub.submissionTime, 'yyyy-MM-dd HH:mm:ss')}">Időpont</td>
+    </tr>
+    </tbody>
+</table>
 
 </body>
 </html>
