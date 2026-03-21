@@ -1,7 +1,7 @@
 package org.example.controller;
 
 import org.example.SokobanApplication;
-import org.example.model.AStarSearch;
+import org.example.model.IDAStarSearch;
 import org.example.model.Direction;
 import org.example.model.SokobanHeuristic;
 import org.example.model.SokobanState;
@@ -10,6 +10,7 @@ import org.example.model.HeuristicSubmission;
 import org.example.repository.HeuristicSubmissionRepository;
 import org.example.repository.UserRepository;
 import org.example.service.DynamicCompilerService;
+import org.example.service.LevelService;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -24,13 +25,16 @@ public class SokobanController {
     private final DynamicCompilerService compilerService;
     private final UserRepository userRepository;
     private final HeuristicSubmissionRepository submissionRepository;
+    private final LevelService levelService; // ÚJ: Bekötjük a pályabeolvasót
 
     public SokobanController(DynamicCompilerService compilerService,
                              UserRepository userRepository,
-                             HeuristicSubmissionRepository submissionRepository) {
+                             HeuristicSubmissionRepository submissionRepository,
+                             LevelService levelService) {
         this.compilerService = compilerService;
         this.userRepository = userRepository;
         this.submissionRepository = submissionRepository;
+        this.levelService = levelService;
     }
 
     @GetMapping("/")
@@ -53,15 +57,11 @@ public class SokobanController {
                 }
                 """;
 
-        // Alapértelmezett pálya
-        String defaultLevel = """
-                ######
-                #@ $.#
-                ######
-                """;
-
         model.addAttribute("code", defaultCode);
-        model.addAttribute("level", defaultLevel);
+        model.addAttribute("level", "######\n#@ $.#\n######\n");
+
+        // ÚJ: Pályák listájának átadása a legördülő menühöz!
+        model.addAttribute("availableLevels", levelService.getAllLevels());
 
         // Ranglista betöltése
         model.addAttribute("leaderboard", submissionRepository.findAllByOrderByStepsToSolveAsc());
@@ -84,8 +84,8 @@ public class SokobanController {
             // 2. Pálya beolvasása
             SokobanState initialState = SokobanApplication.parseLevel(levelData);
 
-            // 3. A* Keresés
-            AStarSearch searcher = new AStarSearch();
+            // 3. ÚJ: IDA* Keresés hívása az A* helyett!
+            IDAStarSearch searcher = new IDAStarSearch();
             List<Direction> solution = searcher.search(initialState, customHeuristic);
 
             long duration = System.currentTimeMillis() - startTime;
@@ -119,6 +119,9 @@ public class SokobanController {
         model.addAttribute("code", userCode);
         model.addAttribute("level", levelData);
         model.addAttribute("leaderboard", submissionRepository.findAllByOrderByStepsToSolveAsc());
+
+        // ÚJ: Itt is át kell adni a pályákat, különben futtatás után eltűnik a menü!
+        model.addAttribute("availableLevels", levelService.getAllLevels());
 
         return "index";
     }

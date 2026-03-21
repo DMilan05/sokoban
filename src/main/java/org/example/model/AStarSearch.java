@@ -86,3 +86,17 @@ public class AStarSearch {
         return path;
     }
 }
+
+/*
+*  Heurisztikus mélységit próbáljak meg, mert az A* az telepakolja a memóriát.
+*
+* Egy művelet egy doboznak az egy lépéssel való arrébb lépése. -> Kisebb legyen a keresési tér.
+* A műveletek előfeltételeinél ki tudná számolni, lehetséges-e a dobozt tologatni vagy esetleg egy lépés
+* egy egyenes irányba való léptetése is lenne a doboznak, ennek ki lehet számolni az előfeltételeit.
+*
+*
+* Legyen vagy 50 pálya és hogy viselkedik rajta, lehessen betölteni pályát.
+*
+*
+* Fájlból lehessen pályát betölteni!!!
+* */

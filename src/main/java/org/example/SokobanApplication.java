@@ -15,7 +15,6 @@ public class SokobanApplication {
         SpringApplication.run(SokobanApplication.class, args);
     }
 
-    // Visszatettük ide a pályabeolvasó metódusodat!
     public static SokobanState parseLevel(String levelData) {
         Set<Position> walls = new HashSet<>();
         Set<Position> boxes = new HashSet<>();
