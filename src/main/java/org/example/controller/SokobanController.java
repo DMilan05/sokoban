@@ -2,9 +2,9 @@ package org.example.controller;
 
 import org.example.SokobanApplication;
 import org.example.model.IDAStarSearch;
-import org.example.model.Direction;
 import org.example.model.SokobanHeuristic;
 import org.example.model.SokobanState;
+import org.example.model.Position; // ÚJ import a heurisztikához
 import org.example.model.User;
 import org.example.model.HeuristicSubmission;
 import org.example.repository.HeuristicSubmissionRepository;
@@ -25,7 +25,7 @@ public class SokobanController {
     private final DynamicCompilerService compilerService;
     private final UserRepository userRepository;
     private final HeuristicSubmissionRepository submissionRepository;
-    private final LevelService levelService; // ÚJ: Bekötjük a pályabeolvasót
+    private final LevelService levelService;
 
     public SokobanController(DynamicCompilerService compilerService,
                              UserRepository userRepository,
@@ -39,31 +39,56 @@ public class SokobanController {
 
     @GetMapping("/")
     public String index(Model model) {
-        // Alapértelmezett kód
+        // Fejlettebb alapértelmezett kód
         String defaultCode = """
                 public int heur(SokobanState state) {
-                    int totalDistance = 0;
-                    for (Position box : state.getBoxes()) {
-                        int minDistance = Integer.MAX_VALUE;
-                        for (Position target : state.getTargets()) {
-                            int dist = Math.abs(box.x() - target.x()) + Math.abs(box.y() - target.y());
-                            if (dist < minDistance) {
-                                minDistance = dist;
-                            }
-                        }
-                        totalDistance += minDistance;
-                    }
-                    return totalDistance;
-                }
+                     int totalDistance = 0;
+                    \s
+                     // Másolatot csinálunk a célokról, hogy törölni tudjuk, amit már "lefoglalt" egy doboz
+                     java.util.List<Position> availableTargets = new java.util.ArrayList<>(state.getTargets());
+                     java.util.Set<Position> walls = state.getWalls();
+                     java.util.Set<Position> targets = state.getTargets();
+                 
+                     for (Position box : state.getBoxes()) {
+                         if (targets.contains(box)) {
+                             availableTargets.remove(box);
+                             continue; // Ha már célon van, kipipáljuk
+                         }
+                 
+                         // SAROK-DEADLOCK ELLENŐRZÉS
+                         boolean wallUp = walls.contains(new Position(box.x(), box.y() - 1));
+                         boolean wallDown = walls.contains(new Position(box.x(), box.y() + 1));
+                         boolean wallLeft = walls.contains(new Position(box.x() - 1, box.y()));
+                         boolean wallRight = walls.contains(new Position(box.x() + 1, box.y()));
+                 
+                         if ((wallUp || wallDown) && (wallLeft || wallRight)) {
+                             return 100000; // Végtelen költség -> Sarok csapda!
+                         }
+                 
+                         // MOHÓ PÁROSÍTÁS (Keresünk egy szabad célt, és lefoglaljuk)
+                         int minDistance = Integer.MAX_VALUE;
+                         Position bestTarget = null;
+                        \s
+                         for (Position target : availableTargets) {
+                             int dist = Math.abs(box.x() - target.x()) + Math.abs(box.y() - target.y());
+                             if (dist < minDistance) {
+                                 minDistance = dist;
+                                 bestTarget = target;
+                             }
+                         }
+                        \s
+                         if (bestTarget != null) {
+                             totalDistance += minDistance;
+                             availableTargets.remove(bestTarget); // Lefoglalva! A többi doboz keressen mást.
+                         }
+                     }
+                     return totalDistance;
+                 }
                 """;
 
         model.addAttribute("code", defaultCode);
         model.addAttribute("level", "######\n#@ $.#\n######\n");
-
-        // ÚJ: Pályák listájának átadása a legördülő menühöz!
         model.addAttribute("availableLevels", levelService.getAllLevels());
-
-        // Ranglista betöltése
         model.addAttribute("leaderboard", submissionRepository.findAllByOrderByStepsToSolveAsc());
         return "index";
     }
@@ -78,25 +103,20 @@ public class SokobanController {
         long startTime = System.currentTimeMillis();
 
         try {
-            // 1. Dinamikus fordítás
             SokobanHeuristic customHeuristic = compilerService.compileAndInstantiate(userCode, "UserHeuristic");
-
-            // 2. Pálya beolvasása
             SokobanState initialState = SokobanApplication.parseLevel(levelData);
 
-            // 3. ÚJ: IDA* Keresés hívása az A* helyett!
             IDAStarSearch searcher = new IDAStarSearch();
-            List<Direction> solution = searcher.search(initialState, customHeuristic);
+            // JAVÍTÁS: List<String> a List<Direction> helyett!
+            List<String> solution = searcher.search(initialState, customHeuristic);
 
             long duration = System.currentTimeMillis() - startTime;
 
-            // 4. Eredmények a felületre
             model.addAttribute("solution", solution);
             model.addAttribute("steps", solution != null ? solution.size() : 0);
             model.addAttribute("time", duration);
             model.addAttribute("message", solution != null ? "Sikeres megoldás! Eredmény elmentve." : "Nincs megoldás a pályára.");
 
-            // 5. Adatbázis mentés
             if (solution != null && username != null && !username.trim().isEmpty()) {
                 String cleanUsername = username.trim();
 
@@ -114,13 +134,10 @@ public class SokobanController {
             model.addAttribute("error", "Hiba történt a kód fordítása vagy futtatása közben: " + e.getMessage());
         }
 
-        // Form visszaállítása és ranglista frissítése
         model.addAttribute("username", username);
         model.addAttribute("code", userCode);
         model.addAttribute("level", levelData);
         model.addAttribute("leaderboard", submissionRepository.findAllByOrderByStepsToSolveAsc());
-
-        // ÚJ: Itt is át kell adni a pályákat, különben futtatás után eltűnik a menü!
         model.addAttribute("availableLevels", levelService.getAllLevels());
 
         return "index";

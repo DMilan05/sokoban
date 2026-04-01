@@ -1,9 +1,6 @@
 package org.example.model;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 public class IDAStarSearch {
 
@@ -17,20 +14,30 @@ public class IDAStarSearch {
         }
     }
 
-    private List<String> currentPath; // ÚJ: Irányok helyett Stringeket (akció leírásokat) tárolunk
+    private List<String> currentPath;
     private Set<SokobanState> currentPathSet;
+    private Map<SokobanState, Integer> visitedPaths;
+
+    // ÚJ: Időmérés változói
+    private long startTime;
+    private static final long TIME_LIMIT_MS = 10000; // 5 MÁSODPERC IDŐKORLÁT! (Ezt átírhatod)
 
     public List<String> search(SokobanState initialState, SokobanHeuristic heuristic) {
         currentPath = new ArrayList<>();
         currentPathSet = new HashSet<>();
+        visitedPaths = new HashMap<>();
+
+        // ÚJ: Elindítjuk a stoppert
+        startTime = System.currentTimeMillis();
 
         int bound = heuristic.heur(initialState);
         currentPathSet.add(initialState);
 
-        System.out.println("IDA* makró-keresés indítása...");
+        System.out.println("IDA* makró-keresés indítása (Időkorlát: " + (TIME_LIMIT_MS/1000) + " mp)...");
 
         while (true) {
             System.out.println("Új mélységi korlát (f-limit): " + bound);
+            visitedPaths.clear();
 
             SearchResult result = searchDFS(initialState, 0, bound, heuristic);
 
@@ -47,19 +54,30 @@ public class IDAStarSearch {
     }
 
     private SearchResult searchDFS(SokobanState current, int g, int bound, SokobanHeuristic heuristic) {
+        // --- ÚJ: IDŐKORLÁT ELLENŐRZÉSE ---
+        if (System.currentTimeMillis() - startTime > TIME_LIMIT_MS) {
+            // Ha letelt az 5 másodperc, megszakítjuk az egészet egy hibával!
+            throw new RuntimeException("Időtúllépés! Az algoritmus nem talált megoldást " + (TIME_LIMIT_MS/1000) + " másodperc alatt. Próbálj jobb heurisztikát vagy kisebb pályát!");
+        }
+        // ---------------------------------
+
         int f = g + heuristic.heur(current);
 
         if (f > bound) return new SearchResult(false, f);
         if (current.isGoal()) return new SearchResult(true, f);
 
+        Integer previousG = visitedPaths.get(current);
+        if (previousG != null && previousG <= g) {
+            return new SearchResult(false, Integer.MAX_VALUE);
+        }
+        visitedPaths.put(current, g);
+
         int min = Integer.MAX_VALUE;
 
-        // --- ÚJ RÉSZ: A buta 4 irány helyett az "okos" doboztolásokat kérjük el! ---
         for (SokobanState.PushMove move : current.getValidPushes()) {
             SokobanState nextState = move.nextState();
 
             if (!currentPathSet.contains(nextState)) {
-
                 currentPath.add(move.description());
                 currentPathSet.add(nextState);
 
